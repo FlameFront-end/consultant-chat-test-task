@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: consultant-chat-ws
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install --omit=dev
+    startCommand: node server.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+    autoDeploy: true
+
+  - type: web
+    name: consultant-chat-web
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # Публичный WS-URL сервиса consultant-chat-ws. Render не подставляет
+      # публичный .onrender.com адрес одного сервиса в env другого через
+      # fromService (там доступен только приватный внутрисетевой хост,
+      # недостижимый из браузера) — имя сервиса фиксировано выше, поэтому
+      # значение задаётся статически и совпадает с ним по построению.
+      - key: NEXT_PUBLIC_WS_URL
+        value: wss://consultant-chat-ws.onrender.com
+    autoDeploy: true

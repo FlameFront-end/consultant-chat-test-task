@@ -1,8 +1,8 @@
 "use client";
 
-import { ConnectionStatus } from "@/components/chat/connection-status";
-import { MessageForm } from "@/components/chat/message-form";
-import { MessageList } from "@/components/chat/message-list";
+import { ConnectionStatus } from "@/features/chat/ui/connection-status";
+import { MessageForm } from "@/features/chat/ui/message-form";
+import { MessageList } from "@/features/chat/ui/message-list";
 import { useChatWebSocket } from "@/features/chat/hooks/use-chat-websocket";
 
 export function Chat() {

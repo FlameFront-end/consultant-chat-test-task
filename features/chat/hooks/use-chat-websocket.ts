@@ -1,54 +1,80 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { chatReducer, initialChatState } from "@/features/chat/model/reducer";
-import type { ConnectionState, OutgoingPayload } from "@/features/chat/model/types";
+import { MAX_MESSAGE_LENGTH } from "@/features/chat/model/message-policy";
+import { getReconnectDelay } from "@/features/chat/model/reconnect-policy";
+import {
+  type ChatMessage,
+  type ChatAction,
+  type ConnectionState,
+  type MessagePayload,
+} from "@/features/chat/model/types";
+import {
+  parseEchoPayload,
+  type InvalidEchoReason,
+} from "@/features/chat/protocol/echo-payload";
 
-const WS_URL = "ws://localhost:8081";
-const MIN_BACKOFF_MS = 1000;
-const MAX_BACKOFF_MS = 10000;
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8081";
+const INVALID_ECHO_MESSAGES: Record<InvalidEchoReason, string> = {
+  "unsupported-data": "WebSocket-сервер вернул неподдерживаемый тип сообщения",
+  "invalid-json": "WebSocket-сервер вернул невалидный JSON",
+  "invalid-payload": "WebSocket-сервер вернул невалидное сообщение",
+};
 
-function nextBackoffDelay(attempt: number): number {
-  const exponential = Math.min(MIN_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS);
-  const jitter = Math.random() * 300;
-  return Math.min(exponential + jitter, MAX_BACKOFF_MS);
-}
+type UseChatWebSocketResult = {
+  messages: readonly ChatMessage[];
+  connectionState: ConnectionState;
+  sendMessage: (text: string) => void;
+  retryMessage: (id: string) => void;
+};
 
-function isOutgoingPayload(value: unknown): value is OutgoingPayload {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return (
-    typeof candidate.id === "string" &&
-    typeof candidate.text === "string" &&
-    typeof candidate.createdAt === "string"
-  );
-}
-
-export function useChatWebSocket() {
+export function useChatWebSocket(): UseChatWebSocketResult {
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
-  const [connectionState, setConnectionState] = useReducer(
-    (_current: ConnectionState, next: ConnectionState) => next,
-    "connecting",
-  );
+  const [connectionState, setConnectionState] =
+    useState<ConnectionState>("connecting");
 
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const reconnectAttemptRef = useRef(0);
   const mountedRef = useRef(true);
   const pendingIdsRef = useRef<Set<string>>(new Set());
   const messagesRef = useRef(state.messages);
 
-  useEffect(() => {
-    messagesRef.current = state.messages;
-  }, [state.messages]);
-
-  const sendOverSocket = useCallback((socket: WebSocket, payload: OutgoingPayload) => {
-    pendingIdsRef.current.add(payload.id);
-    dispatch({ type: "MESSAGE_SENDING", payload: { id: payload.id } });
-    socket.send(JSON.stringify(payload));
+  const dispatchChatAction = useCallback((action: ChatAction) => {
+    messagesRef.current = chatReducer(
+      { messages: messagesRef.current },
+      action,
+    ).messages;
+    dispatch(action);
   }, []);
+
+  const sendOverSocket = useCallback(
+    (socket: WebSocket, payload: MessagePayload) => {
+      if (pendingIdsRef.current.has(payload.id)) {
+        return;
+      }
+
+      pendingIdsRef.current.add(payload.id);
+      try {
+        socket.send(JSON.stringify(payload));
+        dispatchChatAction({
+          type: "MESSAGE_SENDING",
+          payload: { id: payload.id },
+        });
+      } catch (error) {
+        pendingIdsRef.current.delete(payload.id);
+        dispatchChatAction({
+          type: "MESSAGE_QUEUED_AGAIN",
+          payload: { id: payload.id },
+        });
+        console.error("Не удалось отправить сообщение через WebSocket", error);
+        socket.close();
+      }
+    },
+    [dispatchChatAction],
+  );
 
   const flushQueue = useCallback(() => {
     const socket = socketRef.current;
@@ -57,6 +83,10 @@ export function useChatWebSocket() {
     }
 
     for (const message of messagesRef.current) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        break;
+      }
+
       if (message.author === "user" && message.status === "queued") {
         sendOverSocket(socket, {
           id: message.id,
@@ -69,30 +99,42 @@ export function useChatWebSocket() {
 
   useEffect(() => {
     mountedRef.current = true;
+    const pendingIds = pendingIdsRef.current;
 
     function scheduleReconnect() {
-      if (!mountedRef.current) {
+      if (
+        !mountedRef.current ||
+        reconnectTimeoutRef.current !== null ||
+        socketRef.current !== null
+      ) {
         return;
       }
 
-      const delay = nextBackoffDelay(reconnectAttemptRef.current);
+      const delay = getReconnectDelay(reconnectAttemptRef.current);
       reconnectAttemptRef.current += 1;
 
       reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = null;
+        if (!mountedRef.current || socketRef.current !== null) {
+          return;
+        }
+
         setConnectionState("reconnecting");
         connect();
       }, delay);
     }
 
     function connect() {
-      if (!mountedRef.current) {
+      if (!mountedRef.current || socketRef.current !== null) {
         return;
       }
 
       let socket: WebSocket;
       try {
         socket = new WebSocket(WS_URL);
-      } catch {
+      } catch (error) {
+        setConnectionState("closed");
+        console.error("Не удалось создать WebSocket-соединение", error);
         scheduleReconnect();
         return;
       }
@@ -102,60 +144,56 @@ export function useChatWebSocket() {
         setConnectionState("connecting");
       }
 
-      socket.addEventListener("open", () => {
-        if (!mountedRef.current) {
+      socket.onopen = () => {
+        if (!mountedRef.current || socketRef.current !== socket) {
           return;
         }
+
         reconnectAttemptRef.current = 0;
         setConnectionState("open");
         flushQueue();
-      });
+      };
 
-      socket.addEventListener("message", (event) => {
-        if (!mountedRef.current) {
+      socket.onmessage = (event) => {
+        if (!mountedRef.current || socketRef.current !== socket) {
           return;
         }
 
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(String(event.data));
-        } catch {
+        const echoResult = parseEchoPayload(event.data);
+        if (!echoResult.isValid) {
+          console.warn(INVALID_ECHO_MESSAGES[echoResult.reason]);
           return;
         }
 
-        if (!isOutgoingPayload(parsed)) {
+        const echo = echoResult.payload;
+        if (!pendingIds.has(echo.id)) {
           return;
         }
 
-        if (!pendingIdsRef.current.has(parsed.id)) {
-          return;
-        }
-
-        pendingIdsRef.current.delete(parsed.id);
-        dispatch({
+        pendingIds.delete(echo.id);
+        dispatchChatAction({
           type: "ECHO_RECEIVED",
-          payload: { id: parsed.id, text: parsed.text, createdAt: parsed.createdAt },
+          payload: echo,
         });
-      });
+      };
 
-      socket.addEventListener("close", () => {
-        if (socketRef.current === socket) {
-          socketRef.current = null;
-        }
-
-        if (!mountedRef.current) {
+      socket.onclose = () => {
+        if (!mountedRef.current || socketRef.current !== socket) {
           return;
         }
 
-        dispatch({ type: "PENDING_RETURNED_TO_QUEUE" });
-        pendingIdsRef.current.clear();
+        socketRef.current = null;
+        dispatchChatAction({ type: "PENDING_RETURNED_TO_QUEUE" });
+        pendingIds.clear();
         setConnectionState("closed");
         scheduleReconnect();
-      });
+      };
 
-      socket.addEventListener("error", () => {
-        socket.close();
-      });
+      socket.onerror = () => {
+        if (socketRef.current === socket) {
+          socket.close();
+        }
+      };
     }
 
     connect();
@@ -169,49 +207,64 @@ export function useChatWebSocket() {
       }
 
       const socket = socketRef.current;
+      socketRef.current = null;
       if (socket) {
         socket.onopen = null;
         socket.onmessage = null;
         socket.onclose = null;
         socket.onerror = null;
         socket.close();
-        socketRef.current = null;
       }
+
+      pendingIds.clear();
     };
-  }, [flushQueue]);
+  }, [dispatchChatAction, flushQueue]);
 
-  const sendMessage = useCallback((text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      return;
-    }
+  const sendMessage = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || trimmed.length > MAX_MESSAGE_LENGTH) {
+        return;
+      }
 
-    const id = crypto.randomUUID();
-    const createdAt = new Date().toISOString();
+      const id = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
 
-    dispatch({ type: "MESSAGE_QUEUED", payload: { id, text: trimmed, createdAt } });
-
-    const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      sendOverSocket(socket, { id, text: trimmed, createdAt });
-    }
-  }, [sendOverSocket]);
-
-  const retryMessage = useCallback((id: string) => {
-    const message = messagesRef.current.find((item) => item.id === id);
-    if (!message || message.author !== "user" || message.status !== "queued") {
-      return;
-    }
-
-    const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      sendOverSocket(socket, {
-        id: message.id,
-        text: message.text,
-        createdAt: message.createdAt,
+      dispatchChatAction({
+        type: "MESSAGE_QUEUED",
+        payload: { id, text: trimmed, createdAt },
       });
-    }
-  }, [sendOverSocket]);
+
+      const socket = socketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        sendOverSocket(socket, { id, text: trimmed, createdAt });
+      }
+    },
+    [dispatchChatAction, sendOverSocket],
+  );
+
+  const retryMessage = useCallback(
+    (id: string) => {
+      const message = messagesRef.current.find((item) => item.id === id);
+      if (
+        !message ||
+        message.author !== "user" ||
+        message.status !== "queued"
+      ) {
+        return;
+      }
+
+      const socket = socketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        sendOverSocket(socket, {
+          id: message.id,
+          text: message.text,
+          createdAt: message.createdAt,
+        });
+      }
+    },
+    [sendOverSocket],
+  );
 
   return {
     messages: state.messages,

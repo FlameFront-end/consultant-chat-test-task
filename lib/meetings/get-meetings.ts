@@ -1,6 +1,8 @@
-import type { Meeting } from "@/features/meetings/types";
+import "server-only";
 
-const MOCK_MEETINGS: Meeting[] = [
+import type { Meeting } from "@/features/meetings/model/types";
+
+const MOCK_MEETINGS = [
   {
     id: "1",
     title: "Первичная консультация",
@@ -31,8 +33,8 @@ const MOCK_MEETINGS: Meeting[] = [
     date: "2026-08-12T11:00:00.000Z",
     status: "scheduled",
   },
-];
+] satisfies readonly Meeting[];
 
-export async function getMeetings(): Promise<Meeting[]> {
-  return MOCK_MEETINGS;
+export async function getMeetings(): Promise<readonly Meeting[]> {
+  return MOCK_MEETINGS.map((meeting) => ({ ...meeting }));
 }

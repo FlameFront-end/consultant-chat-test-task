@@ -40,7 +40,10 @@ describe("chatReducer", () => {
       type: "MESSAGE_QUEUED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
     });
-    state = chatReducer(state, { type: "MESSAGE_SENDING", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_SENDING",
+      payload: { id: "1" },
+    });
 
     state = chatReducer(state, {
       type: "ECHO_RECEIVED",
@@ -48,8 +51,12 @@ describe("chatReducer", () => {
     });
 
     expect(state.messages).toHaveLength(2);
-    const userMessage = state.messages.find((message) => message.author === "user");
-    const consultantMessage = state.messages.find((message) => message.author === "consultant");
+    const userMessage = state.messages.find(
+      (message) => message.author === "user",
+    );
+    const consultantMessage = state.messages.find(
+      (message) => message.author === "consultant",
+    );
 
     expect(userMessage?.status).toBe("delivered");
     expect(consultantMessage).toMatchObject({
@@ -65,7 +72,10 @@ describe("chatReducer", () => {
       type: "MESSAGE_QUEUED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
     });
-    state = chatReducer(state, { type: "MESSAGE_SENDING", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_SENDING",
+      payload: { id: "1" },
+    });
     state = chatReducer(state, {
       type: "ECHO_RECEIVED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
@@ -87,7 +97,10 @@ describe("chatReducer", () => {
       type: "MESSAGE_QUEUED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
     });
-    state = chatReducer(state, { type: "MESSAGE_SENDING", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_SENDING",
+      payload: { id: "1" },
+    });
 
     state = chatReducer(state, { type: "PENDING_RETURNED_TO_QUEUE" });
 
@@ -99,7 +112,10 @@ describe("chatReducer", () => {
       type: "MESSAGE_QUEUED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
     });
-    state = chatReducer(state, { type: "MESSAGE_SENDING", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_SENDING",
+      payload: { id: "1" },
+    });
     state = chatReducer(state, {
       type: "ECHO_RECEIVED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
@@ -107,7 +123,9 @@ describe("chatReducer", () => {
 
     state = chatReducer(state, { type: "PENDING_RETURNED_TO_QUEUE" });
 
-    const userMessage = state.messages.find((message) => message.author === "user");
+    const userMessage = state.messages.find(
+      (message) => message.author === "user",
+    );
     expect(userMessage?.status).toBe("delivered");
   });
 
@@ -116,9 +134,15 @@ describe("chatReducer", () => {
       type: "MESSAGE_QUEUED",
       payload: { id: "1", text: "Привет", createdAt: NOW },
     });
-    state = chatReducer(state, { type: "MESSAGE_SENDING", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_SENDING",
+      payload: { id: "1" },
+    });
 
-    state = chatReducer(state, { type: "MESSAGE_QUEUED_AGAIN", payload: { id: "1" } });
+    state = chatReducer(state, {
+      type: "MESSAGE_QUEUED_AGAIN",
+      payload: { id: "1" },
+    });
 
     expect(state.messages[0].status).toBe("queued");
   });

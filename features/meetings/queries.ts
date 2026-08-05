@@ -1,12 +1,14 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { fetchMeetings } from "@/features/meetings/api";
+import type { Meeting } from "@/features/meetings/model/types";
 
 export const meetingsQueryKey = ["meetings"] as const;
 
-export function meetingsQueryOptions() {
+type GetMeetings = () => Promise<readonly Meeting[]>;
+
+export function meetingsQueryOptions(getMeetings: GetMeetings) {
   return queryOptions({
     queryKey: meetingsQueryKey,
-    queryFn: fetchMeetings,
+    queryFn: getMeetings,
   });
 }

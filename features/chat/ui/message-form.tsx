@@ -2,11 +2,9 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-export function MessageForm({
-  onSend,
-}: {
-  onSend: (text: string) => void;
-}) {
+import { MAX_MESSAGE_LENGTH } from "@/features/chat/model/message-policy";
+
+export function MessageForm({ onSend }: { onSend: (text: string) => void }) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +27,11 @@ export function MessageForm({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
+    ) {
       event.preventDefault();
       submit();
     }
@@ -51,22 +53,25 @@ export function MessageForm({
           ref={textareaRef}
           id="chat-message"
           name="message"
+          autoComplete="off"
+          aria-describedby="chat-message-hint"
+          maxLength={MAX_MESSAGE_LENGTH}
           rows={1}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Напишите сообщение…"
-          className="max-h-32 min-h-11 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+          className="max-h-32 min-h-11 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
         />
         <button
           type="submit"
           disabled={value.trim().length === 0}
-          className="h-11 shrink-0 cursor-pointer rounded-lg bg-blue-600 px-5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+          className="h-11 shrink-0 touch-manipulation cursor-pointer rounded-lg bg-blue-600 px-5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
         >
           Отправить
         </button>
       </div>
-      <p className="mt-2 text-xs text-slate-400">
+      <p id="chat-message-hint" className="mt-2 text-xs text-slate-500">
         Enter — отправить, Shift+Enter — новая строка
       </p>
     </form>

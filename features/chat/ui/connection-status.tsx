@@ -37,7 +37,9 @@ export function ConnectionStatus({ state }: { state: ConnectionState }) {
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${config.dotClass} ${
-          state === "connecting" || state === "reconnecting" ? "animate-pulse" : ""
+          state === "connecting" || state === "reconnecting"
+            ? "motion-safe:animate-pulse"
+            : ""
         }`}
         aria-hidden="true"
       />

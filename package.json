@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "ws": "node server.js",
+    "ws": "node server.mjs",
     "dev:all": "concurrently -n next,ws -c blue,magenta \"pnpm dev\" \"pnpm ws\"",
     "build": "next build",
     "start": "next start",
@@ -21,6 +21,8 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -28,6 +30,7 @@
     "concurrently": "^10.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

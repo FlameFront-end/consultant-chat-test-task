@@ -1,4 +1,9 @@
-import type { ChatAction, ChatMessage, ChatState } from "@/features/chat/model/types";
+import type {
+  ChatAction,
+  ChatState,
+  ConsultantMessage,
+  UserMessage,
+} from "@/features/chat/model/types";
 
 export const initialChatState: ChatState = {
   messages: [],
@@ -7,7 +12,7 @@ export const initialChatState: ChatState = {
 export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
     case "MESSAGE_QUEUED": {
-      const message: ChatMessage = {
+      const message: UserMessage = {
         id: action.payload.id,
         text: action.payload.text,
         createdAt: action.payload.createdAt,
@@ -45,7 +50,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "ECHO_RECEIVED": {
       const alreadyHasConsultantEcho = state.messages.some(
-        (message) => message.id === action.payload.id && message.author === "consultant",
+        (message) =>
+          message.id === action.payload.id && message.author === "consultant",
       );
 
       if (alreadyHasConsultantEcho) {
@@ -53,14 +59,15 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       }
 
       const userMessage = state.messages.find(
-        (message) => message.id === action.payload.id && message.author === "user",
+        (message) =>
+          message.id === action.payload.id && message.author === "user",
       );
 
       if (!userMessage || userMessage.status === "delivered") {
         return state;
       }
 
-      const consultantMessage: ChatMessage = {
+      const consultantMessage: ConsultantMessage = {
         id: action.payload.id,
         text: action.payload.text,
         createdAt: action.payload.createdAt,

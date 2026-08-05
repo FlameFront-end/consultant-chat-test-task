@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Node CommonJS script run directly via `node server.js`, outside the app's module system.
-    "server.js",
   ]),
 ]);
 

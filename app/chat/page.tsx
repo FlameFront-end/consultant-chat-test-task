@@ -1,7 +1,7 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
 
-import { Chat } from "@/components/chat/chat";
-import { MeetingsSection } from "@/components/meetings/meetings-section";
+import { Chat } from "@/features/chat/ui/chat";
+import { MeetingsSection } from "@/features/meetings/ui/meetings-section";
 import { meetingsQueryOptions } from "@/features/meetings/queries";
 import { getMeetings } from "@/lib/meetings/get-meetings";
 import { getQueryClient } from "@/lib/react-query/get-query-client";
@@ -9,10 +9,7 @@ import { getQueryClient } from "@/lib/react-query/get-query-client";
 export default async function ChatPage() {
   const queryClient = getQueryClient();
 
-  await queryClient.prefetchQuery({
-    ...meetingsQueryOptions(),
-    queryFn: getMeetings,
-  });
+  await queryClient.prefetchQuery(meetingsQueryOptions(getMeetings));
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
