@@ -16,15 +16,24 @@ export default async function ChatPage() {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 p-4 sm:p-6">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Консультация онлайн
-        </h1>
-        <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,320px)_1fr]">
-          <div className="min-h-[240px] lg:h-[70vh]">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:py-10">
+        <header className="flex flex-col gap-1">
+          <span className="text-xs font-semibold tracking-wide text-blue-600 uppercase">
+            Личный кабинет
+          </span>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Консультация онлайн
+          </h1>
+          <p className="text-sm text-slate-500">
+            Просматривайте встречи и общайтесь с консультантом в режиме реального времени.
+          </p>
+        </header>
+
+        <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[340px_1fr]">
+          <div className="min-h-70 lg:h-[calc(100vh-14rem)] lg:min-h-120">
             <MeetingsSection />
           </div>
-          <div className="h-[70vh] min-h-[400px]">
+          <div className="h-[70vh] min-h-105 lg:h-[calc(100vh-14rem)]">
             <Chat />
           </div>
         </div>
