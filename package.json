@@ -2,9 +2,10 @@
   "name": "consultant-chat-test-task",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
-    "ws": "node server.mjs",
+    "ws": "node server.js",
     "dev:all": "concurrently -n next,ws -c blue,magenta \"pnpm dev\" \"pnpm ws\"",
     "build": "next build",
     "start": "next start",

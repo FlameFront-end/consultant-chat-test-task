@@ -14,12 +14,18 @@ const webSocketServer = new WebSocketServer({
 });
 
 webSocketServer.on("connection", (socket) => {
+  /** @type {Set<ReturnType<typeof setTimeout>>} */
+  const echoTimers = new Set();
+
   socket.on("message", (message) => {
-    setTimeout(() => {
+    const echoTimer = setTimeout(() => {
+      echoTimers.delete(echoTimer);
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(message.toString());
       }
     }, ECHO_DELAY_MS);
+
+    echoTimers.add(echoTimer);
   });
 
   const disconnectTimer = setTimeout(
@@ -31,6 +37,12 @@ webSocketServer.on("connection", (socket) => {
 
   socket.once("close", () => {
     clearTimeout(disconnectTimer);
+    // A terminated socket can still have echoes in flight; drop them so the
+    // timers stop holding on to the dead connection.
+    for (const echoTimer of echoTimers) {
+      clearTimeout(echoTimer);
+    }
+    echoTimers.clear();
   });
 });
 
