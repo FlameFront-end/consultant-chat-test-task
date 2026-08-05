@@ -78,7 +78,7 @@ export function MessageList({
                 <button
                   type="button"
                   onClick={() => onRetry(message.id)}
-                  className="rounded border border-slate-300 px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500"
+                  className="cursor-pointer rounded border border-slate-300 px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500"
                 >
                   Повторить
                 </button>
