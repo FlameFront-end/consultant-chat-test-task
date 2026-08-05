@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
 import type { ChatMessage } from "@/features/chat/model/types";
 
 const STATUS_LABELS: Record<ChatMessage["status"], string> = {
@@ -20,6 +24,15 @@ export function MessageList({
   messages: ChatMessage[];
   onRetry: (id: string) => void;
 }) {
+  const listRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [messages]);
+
   if (messages.length === 0) {
     return (
       <p className="flex flex-1 items-center justify-center text-sm text-slate-400">
@@ -29,7 +42,7 @@ export function MessageList({
   }
 
   return (
-    <ul className="flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-2">
+    <ul ref={listRef} className="flex flex-1 flex-col gap-2 overflow-y-auto px-1 py-2">
       {messages.map((message) => {
         const isUser = message.author === "user";
         return (
