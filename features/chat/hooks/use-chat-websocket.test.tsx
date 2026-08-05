@@ -158,6 +158,22 @@ describe("useChatWebSocket", () => {
     expect(consoleError).toHaveBeenCalledOnce();
   });
 
+  it("reports a broken connection as soon as a send failure kills the socket", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result } = renderHook(() => useChatWebSocket());
+    const socket = currentSocket();
+    act(() => socket.open());
+    socket.hasSendError = true;
+
+    act(() => result.current.sendMessage("Привет"));
+
+    // The `close` event is still in flight, but the socket is already unusable:
+    // claiming "open" here would render an enabled retry button that silently
+    // does nothing, because retryMessage requires readyState === OPEN.
+    expect(result.current.connectionState).toBe("closed");
+    expect(result.current.messages[0].status).toBe("queued");
+  });
+
   it("reconnects after a send failure closes the socket", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { result } = renderHook(() => useChatWebSocket());

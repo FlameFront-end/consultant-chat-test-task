@@ -70,6 +70,10 @@ export function useChatWebSocket(): UseChatWebSocketResult {
           payload: { id: payload.id },
         });
         console.error("Не удалось отправить сообщение через WebSocket", error);
+        // The socket is unusable, but its `close` event only lands later. Reflect
+        // the broken connection right away so the status badge stops claiming a
+        // live link and the retry button does not invite a no-op click.
+        setConnectionState("closed");
         socket.close();
       }
     },
