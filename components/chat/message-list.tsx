@@ -20,9 +20,11 @@ function formatTime(iso: string): string {
 export function MessageList({
   messages,
   onRetry,
+  isConnected,
 }: {
   messages: ChatMessage[];
   onRetry: (id: string) => void;
+  isConnected: boolean;
 }) {
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -78,7 +80,9 @@ export function MessageList({
                 <button
                   type="button"
                   onClick={() => onRetry(message.id)}
-                  className="cursor-pointer rounded border border-slate-300 px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500"
+                  disabled={!isConnected}
+                  title={isConnected ? undefined : "Нет связи с сервером"}
+                  className="cursor-pointer rounded border border-slate-300 px-1.5 py-0.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Повторить
                 </button>

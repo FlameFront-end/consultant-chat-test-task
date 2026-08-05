@@ -15,7 +15,11 @@ export function Chat() {
         <ConnectionStatus state={connectionState} />
       </div>
 
-      <MessageList messages={messages} onRetry={retryMessage} />
+      <MessageList
+        messages={messages}
+        onRetry={retryMessage}
+        isConnected={connectionState === "open"}
+      />
 
       <MessageForm onSend={sendMessage} />
     </section>

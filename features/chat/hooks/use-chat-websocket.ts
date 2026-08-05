@@ -10,7 +10,7 @@ const MAX_BACKOFF_MS = 10000;
 function nextBackoffDelay(attempt: number): number {
   const exponential = Math.min(MIN_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS);
   const jitter = Math.random() * 300;
-  return exponential + jitter;
+  return Math.min(exponential + jitter, MAX_BACKOFF_MS);
 }
 
 function isOutgoingPayload(value: unknown): value is OutgoingPayload {
@@ -44,6 +44,12 @@ export function useChatWebSocket() {
     messagesRef.current = state.messages;
   }, [state.messages]);
 
+  const sendOverSocket = useCallback((socket: WebSocket, payload: OutgoingPayload) => {
+    pendingIdsRef.current.add(payload.id);
+    dispatch({ type: "MESSAGE_SENDING", payload: { id: payload.id } });
+    socket.send(JSON.stringify(payload));
+  }, []);
+
   const flushQueue = useCallback(() => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -52,17 +58,14 @@ export function useChatWebSocket() {
 
     for (const message of messagesRef.current) {
       if (message.author === "user" && message.status === "queued") {
-        const payload: OutgoingPayload = {
+        sendOverSocket(socket, {
           id: message.id,
           text: message.text,
           createdAt: message.createdAt,
-        };
-        pendingIdsRef.current.add(message.id);
-        dispatch({ type: "MESSAGE_SENDING", payload: { id: message.id } });
-        socket.send(JSON.stringify(payload));
+        });
       }
     }
-  }, []);
+  }, [sendOverSocket]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -72,11 +75,11 @@ export function useChatWebSocket() {
         return;
       }
 
-      setConnectionState("reconnecting");
       const delay = nextBackoffDelay(reconnectAttemptRef.current);
       reconnectAttemptRef.current += 1;
 
       reconnectTimeoutRef.current = setTimeout(() => {
+        setConnectionState("reconnecting");
         connect();
       }, delay);
     }
@@ -95,7 +98,9 @@ export function useChatWebSocket() {
       }
 
       socketRef.current = socket;
-      setConnectionState(reconnectAttemptRef.current > 0 ? "reconnecting" : "connecting");
+      if (reconnectAttemptRef.current === 0) {
+        setConnectionState("connecting");
+      }
 
       socket.addEventListener("open", () => {
         if (!mountedRef.current) {
@@ -144,6 +149,7 @@ export function useChatWebSocket() {
 
         dispatch({ type: "PENDING_RETURNED_TO_QUEUE" });
         pendingIdsRef.current.clear();
+        setConnectionState("closed");
         scheduleReconnect();
       });
 
@@ -187,12 +193,9 @@ export function useChatWebSocket() {
 
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
-      const payload: OutgoingPayload = { id, text: trimmed, createdAt };
-      pendingIdsRef.current.add(id);
-      dispatch({ type: "MESSAGE_SENDING", payload: { id } });
-      socket.send(JSON.stringify(payload));
+      sendOverSocket(socket, { id, text: trimmed, createdAt });
     }
-  }, []);
+  }, [sendOverSocket]);
 
   const retryMessage = useCallback((id: string) => {
     const message = messagesRef.current.find((item) => item.id === id);
@@ -202,16 +205,13 @@ export function useChatWebSocket() {
 
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
-      const payload: OutgoingPayload = {
+      sendOverSocket(socket, {
         id: message.id,
         text: message.text,
         createdAt: message.createdAt,
-      };
-      pendingIdsRef.current.add(message.id);
-      dispatch({ type: "MESSAGE_SENDING", payload: { id: message.id } });
-      socket.send(JSON.stringify(payload));
+      });
     }
-  }, []);
+  }, [sendOverSocket]);
 
   return {
     messages: state.messages,
